@@ -9,7 +9,7 @@ const jsrsasign = require('jsrsasign');
 /* Apple Webauthn Root
  * Original is here https://www.apple.com/certificateauthority/Apple_WebAuthn_Root_CA.pem
  */
-let appleWebAuthnRoot = 'MIICEjCCAZmgAwIBAgIQaB0BbHo84wIlpQGUKEdXcTAKBggqhkjOPQQDAzBLMR8wHQYDVQQDDBZBcHBsZSBXZWJBdXRobiBSb290IENBMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMB4XDTIwMDMxODE4MjEzMloXDTQ1MDMxNTAwMDAwMFowSzEfMB0GA1UEAwwWQXBwbGUgV2ViQXV0aG4gUm9vdCBDQTETMBEGA1UECgwKQXBwbGUgSW5jLjETMBEGA1UECAwKQ2FsaWZvcm5pYTB2MBAGByqGSM49AgEGBSuBBAAiA2IABCJCQ2pTVhzjl4Wo6IhHtMSAzO2cv+H9DQKev3//fG59G11kxu9eI0/7o6V5uShBpe1u6l6mS19S1FEh6yGljnZAJ+2GNP1mi/YK2kSXIuTHjxA/pcoRf7XkOtO4o1qlcaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUJtdk2cV4wlpn0afeaxLQG2PxxtcwDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMDA2cAMGQCMFrZ+9DsJ1PW9hfNdBywZDsWDbWFp28it1d/5w2RPkRX3Bbn/UbDTNLx7Jr3jAGGiQIwHFj+dJZYUJR786osByBelJYsVZd2GbHQu209b5RCmGQ21gpSAk9QZW4B1bWeT0vT';
+let appleWebAuthnRoot = 'MIICITCCAaegAwIBAgIQC/O+DvHN0uD7jG5yH2IXmDAKBggqhkjOPQQDAzBSMSYwJAYDVQQDDB1BcHBsZSBBcHAgQXR0ZXN0YXRpb24gUm9vdCBDQTETMBEGA1UECgwKQXBwbGUgSW5jLjETMBEGA1UECAwKQ2FsaWZvcm5pYTAeFw0yMDAzMTgxODMyNTNaFw00NTAzMTUwMDAwMDBaMFIxJjAkBgNVBAMMHUFwcGxlIEFwcCBBdHRlc3RhdGlvbiBSb290IENBMRMwEQYDVQQKDApBcHBsZSBJbmMuMRMwEQYDVQQIDApDYWxpZm9ybmlhMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAERTHhmLW07ATaFQIEVwTtT4dyctdhNbJhFs/Ii2FdCgAHGbpphY3+d8qjuDngIN3WVhQUBHAoMeQ/cLiP1sOUtgjqK9auYen1mMEvRq9Sk3Jm5X8U62H+xTD3FE9TgS41o0IwQDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSskRBTM72+aEH/pwyp5frq5eWKoTAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0EAwMDaAAwZQIwQgFGnByvsiVbpTKwSga0kP0e8EeDS4+sQmTvb7vn53O5+FRXgeLhpJ06ysC5PrOyAjEAp5U4xDgEgllF7En3VcE3iexZZtKeYnpqtijVoyFraWVIyd/dganmrduC1bmTBGwD';
 
 let COSEKEYS = {
     'kty' : 1,
@@ -58,12 +58,12 @@ router.post("/attest", function (req, res, next) {
 });
 
 router.post("/attest-new", function (req, res, next) {
-  console.log(req.body);
+  // console.log(req.body);
   try {
     let sign_verify = verifyAppleAnonymousAttestation(req.body)
     res.send({"verification":sign_verify});
   } catch (error) {
-    res.send({"error":error});
+    res.send({"-error":error});
   }
 });
 
@@ -209,12 +209,14 @@ var validateCertificatePath = (certificates) => {
 }
 
 let verifyAppleAnonymousAttestation = (webAuthnResponse) => {
+  try { 
   let attestationBuffer = base64url.toBuffer(webAuthnResponse.response.attestationObject);
   let attestationStruct = cbor.decodeAllSync(attestationBuffer)[0];
 
-  console.log(attestationStruct)
+  // console.log(attestationStruct)
 
   let authDataStruct    = parseAuthData(attestationStruct.authData);
+  console.log(webAuthnResponse.response.clientDataJSON,'auth');
   let clientDataHashBuf = hash('sha256', base64url.toBuffer(webAuthnResponse.response.clientDataJSON));
 
 /* ----- VERIFY NONCE ----- */
@@ -262,6 +264,9 @@ let verifyAppleAnonymousAttestation = (webAuthnResponse) => {
 
   let certificateNonceBuffer  = appleNonceExtensionJSON[1].data[0].data[0].data[0].data;
 
+  console.log(certificateNonceBuffer,'certificateNonceBuffer');
+  console.log(expectedNonceBuffer,'expectedNonceBufferexpectedNonceBuffer');
+
   if(Buffer.compare(certificateNonceBuffer, expectedNonceBuffer) !== 0)
       throw new Error('Attestation certificate does not contain expected nonce!');
 
@@ -296,6 +301,10 @@ let verifyAppleAnonymousAttestation = (webAuthnResponse) => {
 /* ----- VERIFY PUBLIC KEY MATCHING ENDS ----- */
 
   return true
+
+} catch (error) {
+    console.log(error);
+}
 }
 
 module.exports = router;
